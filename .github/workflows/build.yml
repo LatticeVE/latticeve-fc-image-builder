@@ -29,6 +29,10 @@ jobs:
   build-alpine-nginx:
     name: Build Alpine nginx rootfs
     runs-on: ubuntu-latest
+    env:
+      ARCH: ${{ inputs.arch || 'amd64' }}
+      ALPINE_VERSION: ${{ inputs.alpine_version || '3.21' }}
+      EXTRA_MB: ${{ inputs.extra_mb || '8' }}
 
     steps:
       - uses: actions/checkout@v4
@@ -40,10 +44,6 @@ jobs:
         uses: docker/setup-qemu-action@v3
 
       - name: Build rootfs
-        env:
-          ARCH: ${{ inputs.arch || 'amd64' }}
-          ALPINE_VERSION: ${{ inputs.alpine_version || '3.21' }}
-          EXTRA_MB: ${{ inputs.extra_mb || '8' }}
         run: ./build.sh
 
       - name: Summarize artifacts
@@ -59,22 +59,22 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Publish raw release assets
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: fc-rootfs-alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}
-          name: Alpine nginx Firecracker rootfs ${{ inputs.alpine_version }} ${{ inputs.arch }}
+          tag_name: fc-rootfs-alpine-nginx-${{ env.ALPINE_VERSION }}-${{ env.ARCH }}
+          name: Alpine nginx Firecracker rootfs ${{ env.ALPINE_VERSION }} ${{ env.ARCH }}
           body: |
             Raw LatticeVE Firecracker rootfs build.
 
             Download and upload this file to LatticeVE:
 
-            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4`
+            - `alpine-nginx-${{ env.ALPINE_VERSION }}-${{ env.ARCH }}.ext4`
 
             Companion files:
 
-            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4.sha256`
-            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4.json`
+            - `alpine-nginx-${{ env.ALPINE_VERSION }}-${{ env.ARCH }}.ext4.sha256`
+            - `alpine-nginx-${{ env.ALPINE_VERSION }}-${{ env.ARCH }}.ext4.json`
           files: |
             dist/*.ext4
             dist/*.sha256
