@@ -6,7 +6,6 @@ ARG ALPINE_VERSION=3.21
 ARG TARGETARCH
 
 RUN apk add --no-cache \
-      busybox-initscripts \
       e2fsprogs \
       nginx \
       openrc
