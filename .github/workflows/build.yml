@@ -1,0 +1,54 @@
+name: Build RootFS
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: CPU architecture
+        type: choice
+        options: [amd64, arm64]
+        default: amd64
+      alpine_version:
+        description: Alpine version/tag
+        default: '3.21'
+      extra_mb:
+        description: Extra MiB added to the ext4 artifact before first-boot resize
+        default: '8'
+  pull_request:
+    paths:
+      - '**'
+  push:
+    branches: [main]
+    paths:
+      - '**'
+
+jobs:
+  build-alpine-nginx:
+    name: Build Alpine nginx rootfs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install rootfs tools
+        run: sudo apt-get update && sudo apt-get install -y e2fsprogs
+
+      - name: Enable Docker CPU emulation
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build rootfs
+        env:
+          ARCH: ${{ inputs.arch || 'amd64' }}
+          ALPINE_VERSION: ${{ inputs.alpine_version || '3.21' }}
+          EXTRA_MB: ${{ inputs.extra_mb || '8' }}
+        run: ./build.sh
+
+      - name: Upload rootfs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: alpine-nginx-firecracker-rootfs-${{ inputs.arch || 'amd64' }}
+          path: |
+            dist/*.ext4
+            dist/*.sha256
+            dist/*.json
+          retention-days: 14

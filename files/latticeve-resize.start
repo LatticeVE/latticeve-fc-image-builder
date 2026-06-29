@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+
+# LatticeVE can allocate a larger Firecracker disk than the uploaded rootfs
+# artifact. Grow the ext4 filesystem to fill the assigned block device on boot.
+root_dev="$(findmnt -n -o SOURCE / 2>/dev/null || true)"
+
+case "$root_dev" in
+  /dev/*)
+    resize2fs "$root_dev" >/var/log/latticeve-resize.log 2>&1 || true
+    ;;
+esac
