@@ -43,10 +43,22 @@ jobs:
           EXTRA_MB: ${{ inputs.extra_mb || '8' }}
         run: ./build.sh
 
+      - name: Summarize artifacts
+        run: |
+          {
+            echo "## RootFS artifacts"
+            echo
+            echo "GitHub downloads artifacts as zip files. Unzip the artifact, then upload the \`.ext4\` file to LatticeVE."
+            echo
+            echo '```text'
+            find dist -maxdepth 1 -type f -printf '%f\n' | sort
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload rootfs artifact
         uses: actions/upload-artifact@v4
         with:
-          name: alpine-nginx-firecracker-rootfs-${{ inputs.arch || 'amd64' }}
+          name: alpine-nginx-${{ inputs.alpine_version || '3.21' }}-${{ inputs.arch || 'amd64' }}-ext4
           path: |
             dist/*.ext4
             dist/*.sha256
