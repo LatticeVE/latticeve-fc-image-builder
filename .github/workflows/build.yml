@@ -1,5 +1,8 @@
 name: Build RootFS
 
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -48,19 +51,32 @@ jobs:
           {
             echo "## RootFS artifacts"
             echo
-            echo "GitHub downloads artifacts as zip files. Unzip the artifact, then upload the \`.ext4\` file to LatticeVE."
+            echo "Manual workflow runs publish these files as raw GitHub Release assets."
             echo
             echo '```text'
             find dist -maxdepth 1 -type f -printf '%f\n' | sort
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload rootfs artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish raw release assets
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
         with:
-          name: alpine-nginx-${{ inputs.alpine_version || '3.21' }}-${{ inputs.arch || 'amd64' }}-ext4
-          path: |
+          tag_name: fc-rootfs-alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}
+          name: Alpine nginx Firecracker rootfs ${{ inputs.alpine_version }} ${{ inputs.arch }}
+          body: |
+            Raw LatticeVE Firecracker rootfs build.
+
+            Download and upload this file to LatticeVE:
+
+            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4`
+
+            Companion files:
+
+            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4.sha256`
+            - `alpine-nginx-${{ inputs.alpine_version }}-${{ inputs.arch }}.ext4.json`
+          files: |
             dist/*.ext4
             dist/*.sha256
             dist/*.json
-          retention-days: 14
+          overwrite_files: true
