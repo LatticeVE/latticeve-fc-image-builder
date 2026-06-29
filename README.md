@@ -21,6 +21,9 @@ Requirements:
 ARCH=amd64 ALPINE_VERSION=3.21 ./build.sh
 ```
 
+The script re-execs itself with `sudo` when needed so the exported Linux rootfs
+keeps correct root-owned file metadata inside the ext4 image.
+
 Artifacts are written to:
 
 ```text

@@ -16,6 +16,15 @@ case "${arch}" in
   *) echo "unsupported ARCH=${arch}; expected amd64 or arm64" >&2; exit 1 ;;
 esac
 
+# Building an ext4 rootfs should run as root so extracted files keep their
+# numeric Linux ownership and mke2fs can faithfully populate the image. This is
+# especially important in GitHub Actions, where the default runner user would
+# otherwise turn root-owned Alpine files into uid 1001-owned files.
+if [[ "${EUID}" -ne 0 ]]; then
+  command -v sudo >/dev/null || { echo "sudo is required when not running as root" >&2; exit 1; }
+  exec sudo --preserve-env=ARCH,ALPINE_VERSION,EXTRA_MB,OUT_DIR "$0" "$@"
+fi
+
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
 command -v mke2fs >/dev/null || { echo "mke2fs is required; install e2fsprogs" >&2; exit 1; }
 command -v sha256sum >/dev/null || { echo "sha256sum is required" >&2; exit 1; }
@@ -40,7 +49,9 @@ DOCKER_BUILDKIT=1 docker build \
   "${repo_root}"
 
 container_id="$(docker create "${docker_image}")"
-docker export "${container_id}" | tar -C "${rootfs_dir}" -xf -
+docker export "${container_id}" | tar --numeric-owner --exclude='./dev/*' -C "${rootfs_dir}" -xf -
+mkdir -p "${rootfs_dir}/dev" "${rootfs_dir}/proc" "${rootfs_dir}/sys" "${rootfs_dir}/run" "${rootfs_dir}/tmp"
+chmod 1777 "${rootfs_dir}/tmp"
 
 used_kib="$(du -sk "${rootfs_dir}" | awk '{print $1}')"
 size_mib="$(( (used_kib + (extra_mb * 1024) + 1023) / 1024 ))"
@@ -75,3 +86,7 @@ EOF
 
 echo "Built ${rootfs_path}"
 echo "SHA256 $(cut -d' ' -f1 "${sha_path}")"
+
+if [[ -n "${SUDO_UID:-}" && -n "${SUDO_GID:-}" ]]; then
+  chown "${SUDO_UID}:${SUDO_GID}" "${rootfs_path}" "${metadata_path}" "${sha_path}"
+fi
