@@ -30,15 +30,46 @@ auto eth0
 iface eth0 inet dhcp
 EOF
 
-RUN mkdir -p /run/nginx /var/lib/nginx/html; \
-    cat > /etc/nginx/http.d/default.conf <<'EOF'
+# Own the nginx configuration and document root explicitly. Alpine's package
+# defaults have changed across releases, and relying on them can boot nginx but
+# serve the package default 404 page instead of the generated index.
+RUN mkdir -p /run/nginx /var/log/nginx /usr/share/nginx/html /var/lib/nginx /etc/nginx/http.d; \
+    rm -rf /var/lib/nginx/html; \
+    ln -s /usr/share/nginx/html /var/lib/nginx/html; \
+    cat > /etc/nginx/nginx.conf <<'EOF'
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /run/nginx/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /var/log/nginx/access.log;
+    sendfile on;
+    keepalive_timeout 65;
+
+    include /etc/nginx/http.d/*.conf;
+}
+EOF
+
+RUN cat > /etc/nginx/http.d/default.conf <<'EOF'
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
 
-    root /var/lib/nginx/html;
+    root /usr/share/nginx/html;
     index index.html;
+
+    location = / {
+        try_files /index.html =404;
+    }
 
     location / {
         try_files $uri $uri/ =404;
@@ -46,7 +77,7 @@ server {
 }
 EOF
 
-RUN cat > /var/lib/nginx/html/index.html <<EOF
+RUN cat > /usr/share/nginx/html/index.html <<EOF
 <!doctype html>
 <html>
   <head>
